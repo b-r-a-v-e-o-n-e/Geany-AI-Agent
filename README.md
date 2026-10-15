@@ -214,4 +214,4 @@ The tests cover the diff algorithm (against a reference LCS), the path sandbox, 
 
 ## License
 
-MIT. Copyright (c) 2026 Jack Sidman Smith (original); MIT. Copyright (c) 2026 Kristiyan Georgiev - Qt port and modifications.
+MIT. Copyright (c) 2026 Kristo^Di^Giorgio - Qt port and modifications, MIT. Copyright (c) 2026 Jack Sidman Smith (original).
