@@ -1,6 +1,4 @@
-# Geany-AI-Agent
-Basic AI Agent Plugin for Geany 2.0 to automate programming tasks in C++ and Qt6.
-
+# geany-ai-qt
 
 An **AI agent plugin for Geany** (version 0.4.2). It works with **Claude, OpenAI, Groq, Google Gemini, DeepSeek, Qwen, Kimi** or a local model (llama.cpp, Ollama, …). The agent explores your project, writes code, **checks what it needs to build, installs missing packages, compiles on its own and fixes the errors**. Three modes are available: Manual, Ask before run, and Full auto.
 
@@ -214,4 +212,4 @@ The tests cover the diff algorithm (against a reference LCS), the path sandbox, 
 
 ## License
 
-MIT. Copyright (c) 2026 Kristo^Di^Giorgio - Qt port and modifications, MIT. Copyright (c) 2026 Jack Sidman Smith (original).
+MIT. Copyright (c) 2026 Jack Sidman Smith (original); MIT. Copyright (c) 2026 Kristiyan Georgiev - Qt port and modifications.
