@@ -1,7 +1,7 @@
 # geany-ai-qt — Claude AI assistant plugin for Geany with a Qt6 user interface
 # SPDX-License-Identifier: MIT
 cmake_minimum_required(VERSION 3.16)
-project(geany-ai-qt VERSION 0.4.2 LANGUAGES CXX)
+project(geany-ai-qt VERSION 0.4.15 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,6 +27,9 @@ set(PLUGIN_SOURCES
     src/settings.cpp
     src/tools.cpp
     src/mcp.cpp
+    src/webtools.cpp
+    src/remote.cpp
+    src/sessions.cpp
     src/api.cpp
     src/diff.cpp
     src/dialogs.cpp
@@ -46,9 +49,9 @@ install(TARGETS geany-ai-qt LIBRARY DESTINATION "${GEANY_PLUGIN_DIR}")
 option(BUILD_TESTS "Build unit tests" OFF)
 if(BUILD_TESTS)
     enable_testing()
-    add_executable(unit-tests tests/unit-tests.cpp src/diff.cpp src/tools.cpp src/mcp.cpp src/api.cpp src/settings.cpp src/i18n.cpp)
+    add_executable(unit-tests tests/unit-tests.cpp src/diff.cpp src/tools.cpp src/mcp.cpp src/webtools.cpp src/remote.cpp src/sessions.cpp src/api.cpp src/settings.cpp src/i18n.cpp)
     target_include_directories(unit-tests PRIVATE src)
-    target_compile_definitions(unit-tests PRIVATE QT_NO_KEYWORDS GEANY_AI_VERSION="${PROJECT_VERSION}")
+    target_compile_definitions(unit-tests PRIVATE QT_NO_KEYWORDS SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}" GEANY_AI_VERSION="${PROJECT_VERSION}")
     target_link_libraries(unit-tests PRIVATE Qt6::Core Qt6::Network PkgConfig::GEANY)
     add_test(NAME unit-tests COMMAND unit-tests)
 endif()

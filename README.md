@@ -1,6 +1,6 @@
 # geany-ai-qt
 
-An **AI agent plugin for Geany** (version 0.4.2). It works with **Claude, OpenAI, Groq, Google Gemini, DeepSeek, Qwen, Kimi** or a local model (llama.cpp, Ollama, …). The agent explores your project, writes code, **checks what it needs to build, installs missing packages, compiles on its own and fixes the errors**. Three modes are available: Manual, Ask before run, and Full auto.
+An **AI agent plugin for Geany** (version 0.4.15). It works with **Claude, OpenAI, Groq, Google Gemini, DeepSeek, Qwen, Kimi** or a local model (llama.cpp, Ollama, …). The agent explores your project, writes code, **checks what it needs to build, installs missing packages, compiles on its own and fixes the errors**. Three modes are available: Manual, Ask before run, and Full auto.
 
 This is a Qt6 port of [geany-ai](https://github.com/) by Jack Sidman Smith (MIT). The whole UI (dialogs, change review, networking) is **Qt6**.
 
@@ -66,13 +66,31 @@ In Ask and Auto modes files are written immediately (otherwise the build could n
 
 ### Agent tools
 
-`list_dir`, `read_file`, `search_files` (regex, like grep), `write_file`, `edit_file` (exact replacement), `check_environment` (OS, package manager, install privileges, versions of compilers / packages / pkg-config modules — read only), `run_command`, `install_packages`, `task_complete`, plus any MCP tools. `run_command`, `install_packages` and MCP tools are only available in Ask and Auto modes.
+`list_dir`, `read_file`, `search_files` (regex, like grep), `write_file`, `edit_file` (exact replacement), `build_project` (see below), `check_environment` (OS, package manager, install privileges, versions of compilers / packages / pkg-config modules — read only), `run_command`, `install_packages`, `task_complete`, plus any MCP tools. `run_command`, `install_packages` and MCP tools are only available in Ask and Auto modes.
 
 **How it installs:** `install_packages` runs `apt-get install -y` through `pkexec` (the system password dialog on Debian/GNOME/KDE), directly as root, or through `sudo -n` if passwordless. If none of these is available, the agent returns the exact command for you to run manually. `sudo` inside `run_command` is blocked (there is nowhere to type a password).
 
 **Commands:** `/bin/bash -c` in a permitted folder, stdin closed, non-interactive (`DEBIAN_FRONTEND=noninteractive`), default timeout 120 s (up to 1800); the whole process group is killed on timeout or Cancel. Output is streamed to the log; the model gets the beginning and the end (about 18 KB).
 
 **Blocked even in Full auto:** `rm -rf /`, `~`, `$HOME`; `mkfs`; `dd of=/dev/…`; fork bombs; `shutdown/reboot`; `chmod -R … /`; `curl … | sh`; `sudo/su/pkexec`. This is a safety net against gross mistakes, **not a sandbox** — see "Security".
+
+## Getting a project that really compiles
+
+Most failed runs have the same pattern: the model writes many files, builds late, gets a wall of compiler output and then rewrites things in circles. The agent is therefore steered like this (automatically, in every Ask / Auto task):
+
+* **`build_project`** detects CMake / meson / cargo / go / make / npm / python, builds, and returns only what matters: on success the executables; on failure the **first errors with the offending source lines** (the failing line marked with `>`), the end of the log and hints (missing `-dev` package → `install_packages`; Qt `Q_OBJECT` without moc → `CMAKE_AUTOMOC`; `.ui` files → build the UI in code). It works the same on a VM. `run_command` stays available for everything else.
+* **Build discipline in the instructions:** smallest buildable skeleton first, then one feature per step with a build after each; fix only the first error with `edit_file`; after three failed attempts simplify or stub the feature; "done" means built **and** run. For Qt: Qt6 Widgets, `CMAKE_AUTOMOC`, UI in code (no `.ui`).
+* **Automatic reminders:** if the project has not been built successfully after 10, 20, 30 … turns, the model gets a short reminder to get a minimal version building (no dialog).
+* **Rules in the system prompt:** the same build rules are appended to the system prompt on **every** request (also when you saved your own custom prompt, so they cannot be lost by an old saved prompt). They add: at most 3 files between builds, never rewrite a file more than twice, no `.ui`/resource files, run the program before finishing, look things up with the web tools instead of guessing.
+* **Loop breaker:** if the build fails 3 times with the same first error, or the same file is modified 3 times without a successful build, the model gets an automatic note to stop varying the same idea and remove/stub the feature.
+* **Short compiler output:** long `make`/`gcc` output (hundreds of lines of template "candidate" notes) is condensed, also for plain `run_command`, to the first 5 errors with their code lines, plus hints for the usual Qt5→Qt6 mistakes (`QTcpSocket::error` → `errorOccurred`, `QHostAddress` as map key, `QRegExp`, `SkipEmptyParts`, members missing in the header). `build_project` also understands qmake `.pro` projects.
+* **Build first, then more files:** in Ask / Auto mode `write_file` refuses to create a 6th new file while 5 files are written but not built; the model is told to call `build_project` first.
+* **Look it up:** when the build fails twice with the same error, or the first error looks like a wrong API call (`is not a member of`, `no matching function`, `undefined reference`), or a file is rewritten 3 times, the model is told to search the internet (with your `web_search` / `web_fetch` / MCP search & docs tools such as exa, deepwiki, Context7) for the exact error or function name before trying again. A failed `install_packages` with an unknown name also explains how to find the real package (e.g. Qt6 headers are in `qt6-base-dev`).
+* **Automatic web search:** after every 3rd consecutive failed build (Auto mode, web tools on) the plugin itself searches the web for the first compiler error and hands the top results to the model, instead of waiting for the model to think of it. In Ask mode the model gets a text reminder instead (so you are not asked unexpectedly).
+* **CMake hygiene:** the instructions tell the model to use `file(GLOB SOURCES CONFIGURE_DEPENDS *.cpp *.h)` so CMakeLists never lists files that do not exist yet, and `build_project` explains "Cannot find source file" and missing-`#include` errors.
+* **No abbreviated files:** `write_file` refuses content with placeholders such as `// ... rest of the code`, `...` on its own line or "remains the same", because it replaces the whole file.
+
+The model matters a lot. Small or heavily quantised local models usually fail on multi-file C++/Qt projects regardless of tooling; a strong hosted model (Claude, GPT-class, DeepSeek, Qwen-Max) is much more reliable. Ask for small projects first and extend them in the chat. The *Instruction* works best when it names the language, framework and the minimum features.
 
 ## New projects
 
@@ -100,6 +118,52 @@ You then choose:
 
 Running the same build command again after an edit is normal and does not count as a loop.
 
+## Conversation, follow-ups and continuing projects
+
+After the first instruction the progress window becomes a **chat**: the agent keeps the whole conversation (including what it read and ran), so you can type the next instruction in the input box (**Ctrl+Enter**) like in any AI agent. Buttons: *Cancel* (stops the current generation), *Review / undo changes…* (all files changed during the session, with diffs and undo) and *End session*. Closing the window while idle only hides it; the conversation stays open.
+
+* **Sessions are saved** to `~/.local/share/geany-ai/sessions/` (permissions `0600`, the newest 30 are kept). In the *Ask AI Agent* dialog **Resume session** continues one of them, also after an interrupted generation or a Geany restart. A tool call that never got its result is repaired automatically.
+* A session can only be resumed with its full history if the **same API type** is selected (Anthropic format vs OpenAI-compatible format). Otherwise the plugin sends a short digest (earlier instructions, summaries, changed files) instead.
+* **Open project** picks an existing project folder (recent projects are remembered, or use *Browse…*). It becomes the permitted folder for the task and the agent is told what earlier sessions did there.
+* Long conversations are compacted automatically: old tool output and old file contents are shortened above roughly 400 KB.
+
+## Run on: this computer or an SSH machine (VM)
+
+The *Ask AI Agent* dialog has a **Run on** selector. With **This computer** the agent works in your permitted folders as before. Pick one of your SSH machines (Settings → SSH machines) and the agent works **entirely on that machine**:
+
+* **All** tools run there over SSH: `list_dir`, `read_file`, `search_files`, `write_file`, `edit_file`, `check_environment`, `install_packages` and `run_command`. The project folder is created there (*New project* makes `<work folder>/<name>-<suffix>` on the machine; *Open project* takes a path on the machine; recent VM projects are remembered). Nothing is created or installed on your own computer.
+* `install_packages` and `check_environment` detect the machine's package manager (apt, dnf, yum, zypper, pacman, apk, xbps), so other distributions work. Installing needs root, passwordless sudo or a saved sudo password; otherwise the agent gets a clear message. `run_command` can use `sudo` there (see below); the local command blocklist is not applied (it is a VM — use a disposable one).
+* The sandbox is the project folder on the machine. Paths are checked lexically (`..` and other absolute paths are refused); symlinks on the machine are not resolved. `search_files` uses `grep -E` there.
+* Ask mode confirmations show **On the remote machine: <name>**. Manual mode (local staging) is not available for VMs. Undo works on the machine.
+* Sessions remember their machine: **Resume session** reconnects to the same VM and folder (sessions on VMs are listed as `[machine] …`).
+* Files stay on the machine and are **not opened in Geany tabs**. Use **Download project…** in the chat window to copy the project into a local folder (this is the only thing that writes locally). If you want to edit remote files live in Geany, mount the folder yourself (e.g. `sshfs`) and use it as a normal local project instead.
+* MCP tools (if enabled) still run on your computer and cannot see the project.
+
+## SSH machines (QEMU / virtual machines)
+
+**Settings → Tools → SSH machines (VMs)…** adds remote machines where the agent builds and tests, so your own system stays clean (other distributions, other architectures). When the task runs on **This computer**, the agent can additionally use the tools `remote_hosts`, `remote_run`, `remote_upload` and `remote_download` (when the task runs on a machine, everything is already there); the list of machines, with your notes (e.g. "Debian 12 arm64"), is part of its instructions. Not available in Manual mode; in Ask mode every remote action asks first.
+
+* **Login:** private key (optionally with a passphrase) or password. The password / passphrase can be **saved**, so you do not type it again. It is stored in plain text in the config file (`0600`) and is handed to `ssh` through a private `SSH_ASKPASS` helper — never on a command line.
+* **QEMU quick start:** start the VM with user networking and a forwarded port, e.g. `-nic user,hostfwd=tcp::2222-:22`, and add host `127.0.0.1`, port `2222`. Use **Test connection** to see the user, kernel / architecture and the available compilers.
+* **Host keys:** new keys are accepted and remembered in a private known_hosts file; if you re-create the VM often, tick *accept a changed host key* (this disables the check for that machine).
+* **Files:** `remote_upload` copies local files or folders (inside the permitted folders) to the work folder (default `~/geany-ai-work`) through `tar` over ssh, skipping `.git`, `build` and `node_modules`; `remote_download` copies results back into a permitted folder. The machine needs `tar` and `sh`.
+* **sudo on the machine:** if the login user is not root, set a **sudo password** for the machine in the SSH dialog (empty = the login password when you log in with a password; a key login needs its own). `sudo` then works inside `run_command` and `install_packages` automatically. The password is sent over the SSH connection's stdin and fed to `sudo -S` through a shell function — it never appears on a command line — and it is masked (`***`) in the log and in what the model receives. Passwordless sudo and root logins need no password. If there are no root rights at all, `check_environment` says `install_privilege: NONE` and the agent is told to stop and tell you what to configure instead of trying workarounds. Connections are shared (ControlMaster) and closed at the end of the session.
+* **Full auto runs remote commands without restrictions and without the local command blocklist** — use a throw-away VM. Files downloaded from a machine are not covered by *Undo*.
+* Machine names must not contain `/`.
+
+## Built-in tools (nothing to install)
+
+These tools are part of the plugin and need no Node.js, no uv and no account (Ask / Auto modes; switch off in Settings → *Built-in web tools*):
+
+| Tool | What it does |
+|---|---|
+| `web_search` | DuckDuckGo search (titles, URLs, snippets). It reads DuckDuckGo's HTML page, so it can stop working if that page changes or the service rate-limits you. |
+| `web_fetch` | Downloads an http(s) page and returns it as plain text (JSON / text as is, up to 60000 characters). Local and private network addresses (localhost, 10.x, 192.168.x, 169.254.x …) and redirects to them are refused; host names are checked by name, not after DNS resolution. |
+| `current_time` | Local / UTC time, optionally in an IANA time zone. |
+| `memory_store` / `memory_search` / `memory_forget` | Short notes remembered between sessions, in `~/.local/share/geany-ai/memory.json` (`0600`). |
+
+In Ask mode every web request asks first and shows the URL or the search query. Web tools run on **your computer** (also when the task runs on a VM). The MCP catalog still offers more servers; *docs* (Context7) is a remote HTTP server, so it needs no installation either; the others need `npx` or `uvx`.
+
 ## MCP servers
 
 **Settings → Tools → MCP servers…** adds Model Context Protocol servers whose tools the agent can call (Ask / Auto modes; disabled in Manual mode). Two transports are supported:
@@ -108,6 +172,8 @@ Running the same build command again after an edit is normal and does not count 
 |---|---|---|
 | stdio | a command line, e.g. `npx -y @modelcontextprotocol/server-filesystem /home/me/proj` | *Environment*: `KEY=VALUE;KEY2=VALUE2` |
 | HTTP (Streamable HTTP, JSON or SSE replies) | `https://host/mcp` | *HTTP header*: e.g. `Authorization: Bearer …` |
+
+**Add from catalog (free, no key)…** offers servers that need no account or API key. The **remote** ones are only an address — nothing to install: `deepwiki` (`https://mcp.deepwiki.com/mcp`, docs and Q&A for public GitHub repositories), `exa` (`https://mcp.exa.ai/mcp`, web search and page reading), `parallel-search` (`https://search.parallel.ai/mcp`), `huggingface` (`https://hf.co/mcp`, models, datasets, papers), `zip1` (`https://zip1.io/mcp`, URL shortener) and `docs` (Context7, `https://mcp.context7.com/mcp`). They work anonymously and are rate limited by the providers; the URLs come from their documentation and could not be called from the build environment, so test them with **Test connection / list tools**. You can add any other remote MCP server yourself (type *HTTP*, paste the URL). The local ones need Node.js or uv: `filesystem`, `memory`, `thinking` (sequential-thinking), `docs` (Context7), `fetch`, `search` (DuckDuckGo), `time`, `git` and `playwright` (heavy). They start with `npx` (Node.js) or `uvx` (uv), so one of them must be installed (`sudo apt install nodejs npm`; uv: `pipx install uv`). Servers whose runner is missing are marked *NOT installed* in the catalog and skipped at start with a single clear message (also searched: `~/.local/bin`, `~/.cargo/bin`, nvm); the first start downloads the package. `filesystem` and `git` use the project folder you pick in the catalog.
 
 Use **Test connection / list tools** to check a server. The tools appear to the model as `mcp__<server>__<tool>`; in Ask mode every MCP call asks for confirmation (kind "MCP tool", with its arguments), in Auto mode it does not. The first start of an `npx` server may download packages (up to 60 s is allowed). Only tools are supported (no resources/prompts/sampling), and MCP servers run with your user rights — only add servers you trust.
 
@@ -175,6 +241,10 @@ File: `~/.config/geany/geany-ai.conf` (same as the original):
 | `system_prompt` | system instruction |
 | `permitted_dirs` | permitted folders (separated by `;`) |
 | `mcp_servers` | MCP servers as a JSON array (`name`, `target`, `env`, `header`, `enabled`) — edit in the dialog |
+| `ssh_hosts` | SSH machines as a JSON array (includes saved login and sudo passwords in plain text) — edit in the dialog |
+| `recent_projects` | recently opened project folders (VM folders as `ssh://<machine>/<path>`) |
+| `run_target` | last used *Run on* choice (empty = this computer, otherwise the machine name) |
+| `web_tools` | built-in web / memory / clock tools (default `true`) |
 | `open_in_editor` | open changed files in Geany tabs (default `true`) |
 | `new_project` / `project_name` | last used "New project" options |
 | `language` | `en` (default), `bg` or `auto` (by locale) |
@@ -199,17 +269,34 @@ cmake -S . -B build -DBUILD_TESTS=ON && cmake --build build
 QT_QPA_PLATFORM=offscreen ./build/unit-tests
 ```
 
-The tests cover the diff algorithm (against a reference LCS), the path sandbox, settings and migration, the agent tools (edit/search/run_command/timeout/blocking/modes/undo), project folders, the MCP client (`GEANY_AI_MCP_FAKE=tests/fake_mcp.py`: stdio, HTTP, SSE) and loop detection (`GEANY_AI_LOOP_URL`/`GEANY_AI_LOOP_DIR` with `tests/mock_loop.py`). With `GEANY_AI_MOCK_URL`/`GEANY_AI_MOCK_DIR` a full cycle runs against a fake API server, and with `GEANY_AI_AGENT_URL`/`GEANY_AI_AGENT_DIR`/`GEANY_AI_AGENT_FORMAT` an agent scenario runs (environment check → install → code → build → edit; fake servers are in `tests/`).
+The tests cover the diff algorithm (against a reference LCS), the path sandbox, settings and migration, the agent tools (edit/search/run_command/timeout/blocking/modes/undo), project folders, the MCP client (`GEANY_AI_MCP_FAKE=tests/fake_mcp.py`: stdio, HTTP, SSE) and sessions and follow-up conversations (`GEANY_AI_CHAT_URL`/`GEANY_AI_CHAT_DIR`/`GEANY_AI_CHAT_FORMAT` with `tests/mock_chat.py`), the built-in web tools (`GEANY_AI_WEB_URL` with `tests/mock_web.py`), SSH and the whole remote workspace against a local sshd (`GEANY_AI_SSH_TEST_DIR`; `tests/mock_remote.py` scripts a full VM run) and loop detection (`GEANY_AI_LOOP_URL`/`GEANY_AI_LOOP_DIR` with `tests/mock_loop.py`). With `GEANY_AI_MOCK_URL`/`GEANY_AI_MOCK_DIR` a full cycle runs against a fake API server, and with `GEANY_AI_AGENT_URL`/`GEANY_AI_AGENT_DIR`/`GEANY_AI_AGENT_FORMAT` an agent scenario runs (environment check → install → code → build → edit; fake servers are in `tests/`).
 
 ## Known limitations
 
 * Not tested against real cloud APIs (Anthropic, OpenAI, Groq, Google, DeepSeek, Qwen, Kimi) nor against a real llama.cpp/Ollama — the protocols were verified against a fake server. URLs follow the providers' documentation; model names change, so use *Load models*.
 * Package installation only works on Debian/Ubuntu (apt) and needs `pkexec` (polkit) or passwordless `sudo`; otherwise the agent gives you the command.
-* No response streaming and no chat history between tasks — every task starts from scratch.
+* No response streaming. Resuming a session with a different API type continues from a digest, not the full history.
+* SSH: OpenSSH client with `tar`; no Windows targets, no interactive prompts, saved passwords are not encrypted.
 * MCP: tools only, no OAuth flow for HTTP servers (use a static header), no resources/prompts/sampling.
 * On pure Wayland, dialogs cannot be attached as children of Geany's window (a Wayland limitation for windows from different toolkits): the main window is blocked, but the dialog is a standalone window. On X11 it is attached to Geany.
 * Whole files are passed as text — very large files use many tokens.
 
 ## License
 
-MIT. Copyright (c) 2026 Jack Sidman Smith (original); MIT. Copyright (c) 2026 Kristiyan Georgiev - Qt port and modifications.
+MIT. Copyright (c) 2026 Jack Sidman Smith (original); Qt port — same license.
+
+
+### Download project (VM runs)
+
+“Download project…” in the chat window copies the project from the VM into the local folder you choose as `<folder>/<project-name>/` and also packs it as `<project-name>.tar.gz` and `<project-name>.zip` next to it (the zip needs `zip` or `python3` on your computer; otherwise only the tar.gz is created). The folder is then opened in your file manager.
+
+
+### Viewing and editing VM files in Geany
+
+For VM runs every file the agent writes is also copied into a local *mirror*, `~/.local/share/geany-ai/mirror/<machine>/<project>/…`, and opened in a Geany tab (if "open files in the editor" is on). You can read and edit it there; **saving it in Geany (Ctrl+S) uploads your version back to the machine** (the chat log shows `↑ … uploaded`). When the agent changes the same file again the tab is reloaded, unless it has unsaved edits. “Review / undo changes…” restores both the machine and the mirror. Only files the agent wrote are mirrored; use “Download project…” for everything. Builds and test runs always use the machine's copy, so save before asking the agent to build.
+
+### Smaller changes in 0.4.15
+
+* A failed `edit_file` now shows what the file really contains near the first line of `old_str`.
+* `build_project` knows more Qt 6 pitfalls (`toUInt`, `defaultInterface`, `QHostInfo::fromAddress`, `moveToThread(this)`).
+* The “Long run: 30 turns” question is skipped once a build has succeeded (it appears at 60 turns instead).

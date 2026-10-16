@@ -21,6 +21,9 @@ struct TaskSpec {
     Mode        mode = Mode::Ask;
     bool        newProject = false;     // create <dir>/<name>-<suffix> for this task
     QString     projectName;
+    QString     projectDir;             // existing project folder to continue in (empty = none)
+    QString     resumeId;               // saved session to continue (empty = none)
+    QString     target;                 // SSH machine to work on (empty = this computer)
 };
 
 /** "Ask AI Agent" dialog. Returns false if cancelled. */
@@ -42,26 +45,38 @@ bool runFinishDialog(const QString &summary, const QList<AppliedWrite> &applied,
 /** The agent seems to loop: let the user choose how to go on. */
 StuckAction runStuckDialog(const QString &reason, QString *guidance);
 
-/** Add / edit / test MCP servers. Returns true if the user pressed OK. */
-bool runMcpDialog(QList<McpServerCfg> *servers);
+/** Add / edit / test SSH machines (QEMU VMs). Returns true if the user pressed OK. */
+bool runSshDialog(QList<RemoteHost> *hosts);
 
-/** Non-modal live log of a running task. */
-class ProgressDialog : public QDialog {
+/** Add / edit / test MCP servers. Returns true if the user pressed OK. */
+bool runMcpDialog(QList<McpServerCfg> *servers, const QString &defaultPath = QString());
+
+/** Non-modal conversation window: live log + input for the next instruction. */
+class ChatDialog : public QDialog {
 public:
-    ProgressDialog();
+    ChatDialog();
     void append(const QString &line);
-    void setRunning(bool running);
     void setStatus(const QString &text);
-    std::function<void()> onCancel;
+    void setBusy(bool busy);                 // busy: generation running (input disabled, Cancel enabled)
+    void setHasChanges(bool has);
+    void setRemote(const QString &machine);   // shows the "Download project…" button and the machine in the title            // enables "Review / undo changes…"
+    void focusInput();
+    std::function<void()>                onCancel;
+    std::function<void(const QString &)> onSend;
+    std::function<void()>                onReview;
+    std::function<void()>                onEnd;
+    std::function<void()>                onDownload;
 
 protected:
     void reject() override;
 
 private:
+    void send();
     QLabel         *m_status;
     QPlainTextEdit *m_log;
-    QPushButton    *m_button;
-    bool            m_running = true;
+    QPlainTextEdit *m_input;
+    QPushButton    *m_send, *m_cancel, *m_review, *m_end, *m_download;
+    bool            m_busy = true;
 };
 
 } // namespace ai

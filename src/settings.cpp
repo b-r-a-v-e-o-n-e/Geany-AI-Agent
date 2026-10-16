@@ -156,6 +156,18 @@ void loadSettings(Settings &s)
             m.enabled = o.value("enabled").toBool(true);
             if (!m.name.isEmpty() && !m.target.isEmpty()) s.mcpServers << m;
         }
+        const QJsonArray harr = QJsonDocument::fromJson(getStr(kf, "ssh_hosts").toUtf8()).array();
+        for (const QJsonValue &v : harr) {
+            const QJsonObject o = v.toObject();
+            RemoteHost h;
+            h.name = o.value("name").toString(); h.host = o.value("host").toString();
+            h.port = o.value("port").toInt(22); h.user = o.value("user").toString();
+            h.auth = o.value("auth").toString() == QLatin1String("password") ? QStringLiteral("password") : QStringLiteral("key");
+            h.keyPath = o.value("key").toString(); h.password = o.value("password").toString(); h.sudoPassword = o.value("sudo_password").toString();
+            h.remoteDir = o.value("dir").toString(QStringLiteral("~/geany-ai-work"));
+            h.trustChangedKey = o.value("trust_changed").toBool(); h.notes = o.value("notes").toString();
+            if (!h.name.isEmpty() && !h.host.isEmpty()) s.sshHosts << h;
+        }
         auto getB = [&](const char *k, bool def) {
             GError *e = nullptr;
             const gboolean b = g_key_file_get_boolean(kf, kGroup, k, &e);
@@ -164,7 +176,13 @@ void loadSettings(Settings &s)
         };
         s.openInEditor = getB("open_in_editor", true);
         s.newProject   = getB("new_project", false);
+        s.runTarget    = getStr(kf, "run_target");
+        s.webTools     = getB("web_tools", true);
         s.projectName  = getStr(kf, "project_name");
+        gsize rn = 0;
+        gchar **rp = g_key_file_get_string_list(kf, kGroup, "recent_projects", &rn, nullptr);
+        for (gsize i = 0; rp && i < rn && s.recentProjects.size() < 10; ++i) s.recentProjects << QString::fromUtf8(rp[i]);
+        g_strfreev(rp);
     }
 
     gsize n = 0;
@@ -198,9 +216,25 @@ bool saveSettings(const Settings &s)
         for (const McpServerCfg &m : s.mcpServers)
             arr.append(QJsonObject{{"name", m.name}, {"target", m.target}, {"env", m.env}, {"header", m.header}, {"enabled", m.enabled}});
         setS("mcp_servers", arr.isEmpty() ? QString() : QString::fromUtf8(QJsonDocument(arr).toJson(QJsonDocument::Compact)));
+        QJsonArray harr;
+        for (const RemoteHost &h : s.sshHosts)
+            harr.append(QJsonObject{{"name", h.name}, {"host", h.host}, {"port", h.port}, {"user", h.user}, {"auth", h.auth},
+                                    {"key", h.keyPath}, {"password", h.password}, {"sudo_password", h.sudoPassword}, {"dir", h.remoteDir},
+                                    {"trust_changed", h.trustChangedKey}, {"notes", h.notes}});
+        setS("ssh_hosts", harr.isEmpty() ? QString() : QString::fromUtf8(QJsonDocument(harr).toJson(QJsonDocument::Compact)));
         g_key_file_set_boolean(kf, kGroup, "open_in_editor", s.openInEditor);
         g_key_file_set_boolean(kf, kGroup, "new_project", s.newProject);
         setS("project_name", s.projectName);
+        setS("run_target", s.runTarget);
+        g_key_file_set_boolean(kf, kGroup, "web_tools", s.webTools);
+        if (s.recentProjects.isEmpty()) {
+            g_key_file_remove_key(kf, kGroup, "recent_projects", nullptr);
+        } else {
+            QList<QByteArray> store; QVector<const gchar *> ptrs;
+            for (const QString &d : s.recentProjects) store << d.toUtf8();
+            for (const QByteArray &b : store) ptrs << b.constData();
+            g_key_file_set_string_list(kf, kGroup, "recent_projects", ptrs.constData(), (gsize)ptrs.size());
+        }
     }
 
     for (auto it = s.cfg.constBegin(); it != s.cfg.constEnd(); ++it) {

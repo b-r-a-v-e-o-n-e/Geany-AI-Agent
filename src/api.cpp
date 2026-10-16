@@ -108,12 +108,19 @@ QJsonArray AiSession::toolDefinitions(Mode mode, const QJsonArray &extra)
     if (run) {
         a.append(tool("run_command",
                       "Run a shell command with /bin/bash -c in a permitted directory (compile, run tests, git, …). Non-interactive: stdin is closed. "
-                      "Returns the exit code and combined output. No sudo (use install_packages).",
+                      "Returns the exit code and combined output. No sudo on the local computer (use install_packages); on a remote target machine passwordless sudo works.",
                       QJsonObject{{"command", str("The shell command")}, {"cwd", str("Working directory (absolute); default: first permitted dir")},
                                   {"timeout", num("Timeout in seconds (default 120, max 1800)")}},
                       QJsonArray{"command"}));
+        a.append(tool("build_project",
+                      "Build the project: detects CMake / meson / cargo / go / make / npm / python and runs the right commands. On success it lists the executables; "
+                      "on failure it returns ONLY the first errors with the offending source lines and hints (missing packages, moc problems) — far more useful than raw build output. "
+                      "Use it after every meaningful change instead of run_command for compiling.",
+                      QJsonObject{{"dir", str("Project folder (default: the first permitted dir)")}, {"command", str("Optional explicit build command instead of auto-detection")},
+                                  {"timeout", num("Timeout in seconds (default 600, max 3600)")}},
+                      QJsonArray()));
         a.append(tool("install_packages",
-                      "Install Debian/Ubuntu packages with apt-get (asks for administrator rights through the system). Use only for missing packages found with check_environment.",
+                      "Install system packages (apt-get on Debian/Ubuntu; on a remote target machine also dnf, zypper, pacman, apk…, using that distribution's package names). Use only for missing packages found with check_environment.",
                       QJsonObject{{"packages", strArr("Package names")}, {"update", boolean("Run apt-get update first")}},
                       QJsonArray{"packages"}));
     }
@@ -156,6 +163,7 @@ QString AiSession::initialMessage() const
         msg += QStringLiteral("\n\nExclusions (do not read or modify):\n  ") + m_ctx->exclusions().join(QStringLiteral("\n  "));
     msg += QStringLiteral("\n\nPermitted directories:\n  ") + m_ctx->permittedDirs().join(QStringLiteral("\n  "));
     msg += QStringLiteral("\n\nSystem: ") + m_ctx->osSummary();
+    if (!m_ctx->remoteSummary().isEmpty()) msg += QStringLiteral("\n\n") + m_ctx->remoteSummary();
     switch (m_ctx->mode()) {
     case Mode::Manual:
         msg += QStringLiteral("\nMode: MANUAL. You cannot run commands or install packages. Explore with list_dir/read_file/search_files, "
@@ -167,17 +175,67 @@ QString AiSession::initialMessage() const
         msg += QStringLiteral("\nMode: AGENT (%1). Work autonomously:\n"
                               "1. Explore the project (list_dir, read_file, search_files).\n"
                               "2. Call check_environment for everything the task needs (compilers, build tools, -dev packages, pkg-config modules).\n"
-                              "3. If something is missing, call install_packages (Debian/Ubuntu names) and check again.\n"
+                              "3. If something is missing, call install_packages (package names of the system reported by check_environment) and check again.\n"
                               "4. Write the code (write_file / edit_file).\n"
-                              "5. Build it with run_command, read the errors, fix them and repeat until it builds; then run tests or the program if sensible.\n"
-                              "6. If MCP tools (names starting with mcp__) are offered, use them when they fit the task.\n"
+                              "5. Build it with build_project (it returns only the first errors with the offending source lines), fix the FIRST error, build again; repeat until it builds; then run the program or tests with run_command.\n"
+                              "6. If web_search / web_fetch are offered, use them to read current documentation instead of guessing APIs; memory_store / memory_search keep notes between sessions. If MCP tools (names starting with mcp__) are offered, use them when they fit.\n"
                               "7. Call task_complete with a summary of what was built, how it was verified and the exact path of the result.\n"
-                              "Commands are non-interactive (stdin closed, no sudo, no pagers). Keep commands short-running or set a timeout. "
-                              "Never delete or overwrite things outside the permitted directories.")
+                              "Commands are non-interactive (stdin closed, no pagers, no sudo prompts). Keep commands short-running or set a timeout. "
+                              "Never delete or overwrite things outside the permitted directories.\n\n"
+                              "BUILD DISCIPLINE (this is what makes projects actually compile):\n"
+                              "- Start with the smallest thing that builds and runs (CMakeLists.txt + one main file) and call build_project immediately. Then add ONE feature or file at a time and build after each. Never write ten files and build at the end.\n"
+                              "- Keep the project small and the dependencies few. Prefer the standard library and the one framework asked for. For Qt: Qt6, find_package(Qt6 REQUIRED COMPONENTS Widgets), set(CMAKE_AUTOMOC ON), build the UI in C++ code — do NOT use .ui files, resource files or optional Qt modules unless essential.\n"
+                              "- Fix the first error only; later ones are usually a consequence. Change as little as possible with edit_file; do not rewrite whole files to fix one error, and never delete working code.\n"
+                              "- Read an error carefully: the file:line it reports and the lines shown are the truth. If you are unsure of an API, use web_search/web_fetch (if offered) or look at the installed headers with search_files instead of guessing.\n"
+                              "- If the same problem survives three attempts, simplify: remove or stub the problematic feature, get a working build, and only then come back to it.\n"
+                              "- Done means: build_project succeeded AND you ran the program (or its tests) at least once and saw correct output. Say honestly in task_complete what works and what does not.")
                  .arg(m_ctx->mode() == Mode::Ask ? QStringLiteral("the user confirms each action") : QStringLiteral("full auto, nothing is confirmed"));
         break;
     }
     return msg;
+}
+
+static QString agentRules()
+{
+    return QStringLiteral(
+        "NON-NEGOTIABLE RULES FOR BUILDING SOFTWARE (they apply to every task, whatever else was said above):\n"
+        "- Start with the SMALLEST program that builds and runs (a window or a hello-world, a few files). Call build_project right after the first files exist. "
+        "Add one feature at a time and build after EACH one. Never write more than 3 files between two builds.\n"
+        "- In CMakeLists.txt never list source files that do not exist yet: use file(GLOB SOURCES CONFIGURE_DEPENDS *.cpp *.h) (or src/*.cpp) so every file you create is picked up automatically. "
+        "Every .cpp must #include the headers of every class it uses (Qt classes too: <QTcpSocket>, <QTimer>, <QFile> ...); declare each class in its own header and include that header.\n"
+        "- When a build fails, fix ONLY the first error shown, with edit_file, then build again. Never rewrite a whole file to fix one error. "
+        "Never rewrite the same file more than twice: if it still fails, remove or stub the feature that causes it.\n"
+        "- After 3 failed builds in a row, SIMPLIFY (drop the feature, use a simpler API) instead of trying variations of the same idea.\n"
+        "- Qt6 (not Qt5!) API: use errorOccurred (not error) on sockets, QRegularExpression (no QRegExp), Qt::SkipEmptyParts, QString/quint32 keys instead of QHostAddress in QMap/QSet, "
+        "find_package(Qt6 COMPONENTS Widgets Network REQUIRED) and target_link_libraries(... Qt6::Widgets Qt6::Network). Declare every member in the header before defining it in the .cpp. "
+        "Always build with build_project (it works for CMake, qmake .pro, meson, make, cargo, go, npm) rather than raw make/cmake commands.\n"
+        "- Do not use generated GUI files (.ui, .qrc, resource compilers); build the interface in code. For Qt use Qt6 Widgets with CMAKE_AUTOMOC ON. "
+        "Do not hand-edit XML; if you cannot validate something, avoid it.\n"
+        "- Do not repeat a tool call that already gave the same result. If you are not making progress, change the approach or call task_complete and say what blocks you.\n"
+        "- Do not 'verify' by re-reading files you just wrote. The build is the verification.\n"
+        "- If a tool is missing (xmllint, etc.), do not try to install or work around it unless the task needs it.\n"
+        "- Do not stop at 'it compiles': run the program briefly (with a timeout; for GUI programs use QT_QPA_PLATFORM=offscreen) before task_complete.\n"
+        "- You HAVE internet access through your search/fetch tools (web_search, web_fetch and any MCP search or documentation tools). Use them EARLY: whenever you are unsure about an API, a package name or an error message, search first (the error text or the exact function name) and read the result; do not guess and do not retry blindly.\n");
+}
+
+QString AiSession::searchHint() const
+{
+    QStringList names;
+    static const QRegularExpression re(QStringLiteral("search|fetch|wiki|ask_question|docs|query"), QRegularExpression::CaseInsensitiveOption);
+    for (const QJsonValue &v : m_ctx->extraToolDefs()) {
+        const QJsonObject o = v.toObject();
+        const QString n = o.contains("name") ? o.value("name").toString() : o.value("function").toObject().value("name").toString();
+        if (!n.isEmpty() && re.match(n).hasMatch() && !n.startsWith(QLatin1String("remote_")) && !n.startsWith(QLatin1String("memory_"))) names << n;
+    }
+    if (names.isEmpty()) return {};
+    names = names.mid(0, 5);
+    return QStringLiteral(" BEFORE trying another fix, LOOK IT UP on the internet with one of your search tools (%1): search for the exact error message or the exact Qt/library function name and read the answer or the API page. Do not guess an API.")
+        .arg(names.join(QStringLiteral(", ")));
+}
+
+QString AiSession::systemText() const
+{
+    return m_s.systemPrompt + QStringLiteral("\n\n") + agentRules();
 }
 
 void AiSession::start()
@@ -186,9 +244,124 @@ void AiSession::start()
     if (m_cancelled) { finishCancelled(); return; }
     m_turnCap = m_ctx->canRun() ? kMaxTurnsAgent : kMaxTurnsManual;
     m_messages = QJsonArray();
-    if (m_openai) m_messages.append(QJsonObject{{"role", "system"}, {"content", m_s.systemPrompt}});
+    if (m_openai) m_messages.append(QJsonObject{{"role", "system"}, {"content", systemText()}});
     m_messages.append(QJsonObject{{"role", "user"}, {"content", initialMessage()}});
     nextTurn();
+}
+
+void AiSession::repairHistory()
+{
+    if (m_messages.isEmpty()) return;
+    if (!m_openai) {
+        const QJsonObject last = m_messages.last().toObject();
+        if (last.value("role").toString() != QLatin1String("assistant")) return;
+        QJsonArray results;
+        for (const QJsonValue &v : last.value("content").toArray()) {
+            const QJsonObject b = v.toObject();
+            if (b.value("type").toString() == QLatin1String("tool_use"))
+                results.append(QJsonObject{{"type", "tool_result"}, {"tool_use_id", b.value("id")},
+                                           {"content", "(interrupted before this tool ran)"}, {"is_error", true}});
+        }
+        if (!results.isEmpty()) m_messages.append(QJsonObject{{"role", "user"}, {"content", results}});
+        return;
+    }
+    // OpenAI: every tool call of the last assistant message needs a tool message
+    int ai = -1;
+    for (int i = m_messages.size() - 1; i >= 0; --i)
+        if (m_messages[i].toObject().value("role").toString() == QLatin1String("assistant")) { ai = i; break; }
+    if (ai < 0) return;
+    QStringList need;
+    for (const QJsonValue &v : m_messages[ai].toObject().value("tool_calls").toArray()) need << v.toObject().value("id").toString();
+    for (int i = ai + 1; i < m_messages.size(); ++i) need.removeAll(m_messages[i].toObject().value("tool_call_id").toString());
+    for (const QString &id : need)
+        m_messages.append(QJsonObject{{"role", "tool"}, {"tool_call_id", id}, {"content", "(interrupted before this tool ran)"}});
+}
+
+void AiSession::compactHistory()
+{
+    // Long conversations: shorten old tool output and old file contents so the context stays usable.
+    if (QJsonDocument(m_messages).toJson(QJsonDocument::Compact).size() < 400000) return;
+    auto shrink = [](const QString &s, int n) { return s.size() > n ? s.left(n) + QStringLiteral("\n… [shortened to save context]") : s; };
+    QJsonArray out;
+    const int keep = 8;
+    for (int i = 0; i < m_messages.size(); ++i) {
+        QJsonObject m = m_messages[i].toObject();
+        if (i < m_messages.size() - keep) {
+            if (m.value("role").toString() == QLatin1String("tool")) {
+                m["content"] = shrink(m.value("content").toString(), 600);
+            } else if (m.value("content").isArray()) {
+                QJsonArray blocks;
+                for (const QJsonValue &bv : m.value("content").toArray()) {
+                    QJsonObject b = bv.toObject();
+                    if (b.value("type").toString() == QLatin1String("tool_result") && b.value("content").isString())
+                        b["content"] = shrink(b.value("content").toString(), 600);
+                    if (b.value("type").toString() == QLatin1String("tool_use")) {
+                        QJsonObject in = b.value("input").toObject();
+                        for (const char *k : {"content", "old_str", "new_str"})
+                            if (in.value(QLatin1String(k)).isString()) in[QLatin1String(k)] = shrink(in.value(QLatin1String(k)).toString(), 300);
+                        b["input"] = in;
+                    }
+                    blocks.append(b);
+                }
+                m["content"] = blocks;
+            }
+            if (m.contains("tool_calls")) {
+                QJsonArray calls;
+                for (const QJsonValue &cv : m.value("tool_calls").toArray()) {
+                    QJsonObject c = cv.toObject();
+                    QJsonObject fn = c.value("function").toObject();
+                    if (fn.value("arguments").toString().size() > 1500) fn["arguments"] = QStringLiteral("{\"note\":\"arguments shortened to save context\"}");
+                    c["function"] = fn;
+                    calls.append(c);
+                }
+                m["tool_calls"] = calls;
+            }
+        }
+        out.append(m);
+    }
+    m_messages = out;
+}
+
+void AiSession::appendUser(const QString &text)
+{
+    if (!m_openai && !m_messages.isEmpty()) {
+        QJsonObject last = m_messages.last().toObject();
+        if (last.value("role").toString() == QLatin1String("user") && last.value("content").isArray()) {
+            QJsonArray blocks = last.value("content").toArray();      // tool results first, then our text
+            blocks.append(QJsonObject{{"type", "text"}, {"text", text}});
+            last["content"] = blocks;
+            m_messages[m_messages.size() - 1] = last;
+            return;
+        }
+    }
+    m_messages.append(QJsonObject{{"role", "user"}, {"content", text}});
+}
+
+void AiSession::sendFollowUp(const QString &text)
+{
+    if (m_running) return;
+    m_cancelled = false; m_done = false; m_running = true; m_stopped = false;
+    m_turn = 0; m_retries = 0; m_failStreak = 0; m_quiet = 0; m_nextCheckpoint = 30;
+    m_sigs.clear(); m_failHashes.clear();
+    m_turnCap = m_ctx->canRun() ? kMaxTurnsAgent : kMaxTurnsManual;
+    m_ctx->resetAbort();
+    repairHistory();
+    QString msg;
+    for (const QString &n : std::as_const(m_notes)) msg += QStringLiteral("[Note] ") + n + QLatin1Char('\n');
+    m_notes.clear();
+    msg += text;
+    appendUser(msg);
+    nextTurn();
+}
+
+void AiSession::resume(const QJsonArray &history, const QString &text)
+{
+    m_messages = history;
+    if (m_openai && !m_messages.isEmpty() && m_messages[0].toObject().value("role").toString() == QLatin1String("system"))
+        m_messages[0] = QJsonObject{{"role", "system"}, {"content", systemText()}};      // current system prompt
+    m_running = false;
+    if (m_cancelled) { m_running = true; finishCancelled(); return; }
+    sendFollowUp(text);
 }
 
 void AiSession::cancel()
@@ -236,6 +409,7 @@ void AiSession::nextTurn()
 
 void AiSession::post()
 {
+    compactHistory();
     QJsonObject body;
     QNetworkRequest req;
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -247,7 +421,7 @@ void AiSession::post()
             req.setRawHeader("Authorization", "Bearer " + m_s.apiKey().toUtf8());
         body["model"]      = model;
         body["max_tokens"] = m_s.maxTokens;
-        body["tools"]      = openAiToolDefinitions(m_ctx->mode(), m_ctx->mcpToolDefs());
+        body["tools"]      = openAiToolDefinitions(m_ctx->mode(), m_ctx->extraToolDefs());
         body["messages"]   = m_messages;
         body["stream"]     = false;
         // Local models can take minutes before the first byte of a non-streamed reply.
@@ -258,8 +432,8 @@ void AiSession::post()
         req.setRawHeader("anthropic-version", "2023-06-01");
         body["model"]      = model;
         body["max_tokens"] = m_s.maxTokens;
-        body["system"]     = m_s.systemPrompt;
-        body["tools"]      = toolDefinitions(m_ctx->mode(), m_ctx->mcpToolDefs());
+        body["system"]     = systemText();
+        body["tools"]      = toolDefinitions(m_ctx->mode(), m_ctx->extraToolDefs());
         body["messages"]   = m_messages;
         req.setTransferTimeout(5 * 60 * 1000);
     }
@@ -369,7 +543,11 @@ void AiSession::handleResponse(const QJsonObject &resp)
         }
         results.append(tr);
     }
-    if (complete) { finish(summary.isEmpty() ? TR("Done.") : summary); return; }
+    if (complete) {
+        m_messages.append(QJsonObject{{"role", "user"}, {"content", results}});     // keeps the history valid for follow-ups
+        finish(summary.isEmpty() ? TR("Done.") : summary);
+        return;
+    }
 
     bool stopNow = false;
     const QString note = stuckCheck(&stopNow);
@@ -483,8 +661,23 @@ ToolResult AiSession::execute(const QString &name, const QJsonObject &input)
     auto bad = [](const QString &m) { ToolResult r; r.isError = true; r.text = QStringLiteral("Error: ") + m; r.note = r.text; return r; };
     auto needStr = [&](const char *k) { return input.value(QLatin1String(k)).isString(); };
 
+    if (m_ctx->isBuiltinTool(name))
+        return m_ctx->callBuiltin(name, input);
     if (m_ctx->isMcpTool(name))
         return m_ctx->callMcp(name, input);
+    if (name == QLatin1String("remote_hosts")) return m_ctx->remoteHostsInfo();
+    if (name == QLatin1String("remote_run")) {
+        if (!needStr("host") || !needStr("command")) return bad(QStringLiteral("missing string parameter 'host' or 'command'"));
+        return m_ctx->remoteRun(input.value("host").toString(), input.value("command").toString(), input.value("cwd").toString(), input.value("timeout").toInt(300));
+    }
+    if (name == QLatin1String("remote_upload")) {
+        if (!needStr("host")) return bad(QStringLiteral("missing string parameter 'host'"));
+        return m_ctx->remoteUpload(input.value("host").toString(), input.value("local_path").toString(), input.value("remote_path").toString(), strList(input.value("exclude")));
+    }
+    if (name == QLatin1String("remote_download")) {
+        if (!needStr("host") || !needStr("remote_path") || !needStr("local_dir")) return bad(QStringLiteral("missing parameter 'host', 'remote_path' or 'local_dir'"));
+        return m_ctx->remoteDownload(input.value("host").toString(), input.value("remote_path").toString(), input.value("local_dir").toString(), strList(input.value("exclude")));
+    }
     if (name == QLatin1String("read_file"))
         return m_ctx->readFile(input.value("path").toString());
     if (name == QLatin1String("list_dir"))
@@ -495,6 +688,9 @@ ToolResult AiSession::execute(const QString &name, const QJsonObject &input)
     }
     if (name == QLatin1String("write_file")) {
         if (!needStr("content")) return bad(QStringLiteral("missing string parameter 'content'"));
+        if (m_ctx->canRun() && m_unbuilt.size() >= 5 && !m_unbuilt.contains(input.value("path").toString()))
+            return bad(QStringLiteral("REFUSED: you already wrote or changed %1 files without building. Call build_project NOW with what exists (CMakeLists.txt must list only existing files - use file(GLOB ...)), fix the first error, "
+                                      "and only then add more files. (This rule exists because big un-built code almost never compiles.)").arg(m_unbuilt.size()));
         return m_ctx->writeFile(input.value("path").toString(), input.value("content").toString());
     }
     if (name == QLatin1String("edit_file")) {
@@ -506,11 +702,25 @@ ToolResult AiSession::execute(const QString &name, const QJsonObject &input)
         return m_ctx->checkEnvironment(strList(input.value("commands")), strList(input.value("packages")), strList(input.value("pkgconfig")));
     if (name == QLatin1String("run_command")) {
         if (!needStr("command")) return bad(QStringLiteral("missing string parameter 'command'"));
-        return m_ctx->runCommand(input.value("command").toString(), input.value("cwd").toString(),
-                                 input.value("timeout").toInt(120));
+        ToolResult r = m_ctx->runCommand(input.value("command").toString(), input.value("cwd").toString(),
+                                         input.value("timeout").toInt(120));
+        r.text = condenseCompilerOutput(r.text);
+        return r;
     }
+    if (name == QLatin1String("build_project"))
+        return m_ctx->buildProject(input.value("dir").toString(), input.value("command").toString(), input.value("timeout").toInt(600));
     if (name == QLatin1String("install_packages"))
-        return m_ctx->installPackages(strList(input.value("packages")), input.value("update").toBool());
+    {
+        ToolResult r = m_ctx->installPackages(strList(input.value("packages")), input.value("update").toBool());
+        if (r.isError && r.text.contains(QLatin1String("Unable to locate package"))) {
+            QString h = QStringLiteral("\nHINT: that package name does not exist - do not guess names. Find the real one with run_command `apt-cache search --names-only <word>`.");
+            if (r.text.contains(QLatin1String("qt6")) || r.text.contains(QLatin1String("qt5")))
+                h += QStringLiteral(" On Debian/Ubuntu there are no libqt6widgets6-dev / libqt6-network-dev packages: ALL Qt6 core/gui/widgets/network headers are in `qt6-base-dev` "
+                                    "(check first: `dpkg -s qt6-base-dev` or `pkg-config --modules-exist Qt6Widgets Qt6Network`; it is often already installed). Qt Designer is qt6-tools-dev, multimedia is qt6-multimedia-dev.");
+            r.text += h;
+        }
+        return r;
+    }
     return bad(QStringLiteral("unknown tool: ") + name);
 }
 
@@ -528,6 +738,60 @@ void AiSession::recordCall(const QString &name, const QJsonObject &input, const 
     // running the same build command again after an edit is normal.
     const QString sig = name + QLatin1Char('|') + QString::fromUtf8(QJsonDocument(input).toJson(QJsonDocument::Compact))
                       + QLatin1Char('|') + res.text.left(300);
+    if (name == QLatin1String("run_command")) {
+        static const QRegularExpression buildCmd(QStringLiteral("\\b(cmake|make|gmake|ninja|cargo|qmake6?|meson|g\\+\\+|gcc|clang\\+*|go build|npm run build)\\b"));
+        if (buildCmd.match(input.value("command").toString()).hasMatch()) m_unbuilt.clear();
+    }
+    if (name == QLatin1String("build_project")) {
+        m_unbuilt.clear();
+        m_buildState = res.isError ? 2 : 1;
+        if (!res.isError) m_everBuilt = true;
+        if (!res.isError) { m_pathWrites.clear(); m_sameBuildErr = 0; m_failedBuilds = 0; m_lastBuildErr.clear(); }
+        else {
+            QString first;
+            for (const QString &l : res.text.split(QLatin1Char('\n')))
+                if (!l.trimmed().startsWith(QLatin1String("---")) && l.contains(QLatin1String("error"), Qt::CaseInsensitive)) { first = l.trimmed().left(160); break; }
+            if (!first.isEmpty() && first == m_lastBuildErr) ++m_sameBuildErr; else { m_sameBuildErr = 1; m_lastBuildErr = first; }
+            ++m_failedBuilds;
+            if (m_failedBuilds >= 3 && m_failedBuilds % 3 == 0 && m_ctx->isBuiltinTool(QStringLiteral("web_search")) && !first.isEmpty()) {
+                // The model does not look things up by itself: do it for it and hand over the results.
+                QString msg = first;
+                const int e = msg.indexOf(QLatin1String("error: "));
+                if (e >= 0) msg = msg.mid(e + 7);
+                const QString q = QStringLiteral("Qt6 C++ ") + msg.left(120);
+                const ToolResult sr = m_ctx->callBuiltin(QStringLiteral("web_search"), QJsonObject{{"query", q}});
+                if (!sr.isError && !sr.text.trimmed().isEmpty()) {
+                    Q_EMIT progress(QStringLiteral("🔎 ") + q);
+                    m_pendingNote = QStringLiteral("Automatic note: %1 builds in a row failed. I searched the web for you (query: \"%2\"). Read these results, open the most relevant one with web_fetch if needed, "
+                        "and apply what they say instead of guessing:\n%3\nIf this does not help, simplify: remove or stub the failing feature.")
+                        .arg(m_failedBuilds).arg(q, sr.text.left(2500));
+                }
+            }
+            if (m_pendingNote.isEmpty() && m_failedBuilds >= 3 && m_failedBuilds % 3 == 0) {
+                const QString s = searchHint();
+                m_pendingNote = QStringLiteral("Automatic note: %1 builds in a row failed.").arg(m_failedBuilds) + s
+                    + QStringLiteral(" Fix only the FIRST error; most of the others are consequences (usually a missing #include or a missing declaration in a header). If it keeps failing, simplify.");
+            }
+            if (!first.isEmpty() && first != m_lastHinted && m_pendingNote.isEmpty()
+                && (first.contains(QLatin1String("is not a member of")) || first.contains(QLatin1String("no matching function"))
+                    || first.contains(QLatin1String("has no member named")) || first.contains(QLatin1String("undefined reference")))) {
+                const QString s = searchHint();
+                if (!s.isEmpty()) { m_lastHinted = first; m_pendingNote = QStringLiteral("Automatic note: the first error (%1) looks like a wrong or unknown API call.").arg(first) + s; }
+            }
+            if (m_sameBuildErr >= 2 && m_pendingNote.isEmpty())
+                m_pendingNote = QStringLiteral("Automatic note: the build has failed %1 times with the same first error (%2). Your fixes are not working. "
+                    "Do NOT try another variation blindly.").arg(m_sameBuildErr).arg(first) + searchHint()
+                    + QStringLiteral(" If that does not help, remove or stub the code that triggers it (or replace it with something simpler), build again, and only then continue.");
+        }
+    }
+    if ((name == QLatin1String("write_file") || name == QLatin1String("edit_file")) && !res.isError) {
+        const QString p = input.value("path").toString();
+        m_unbuilt.insert(p);
+        const int n = ++m_pathWrites[p];
+        if (n >= 3 && m_pendingNote.isEmpty())
+            m_pendingNote = QStringLiteral("Automatic note: you have modified %1 %2 times without a successful build. Stop rewriting it. "
+                "Run build_project, read the FIRST error only and fix exactly that line; if it is a feature that keeps breaking, delete or stub it.").arg(p).arg(n) + searchHint();
+    }
     m_sigs << sig;
     while (m_sigs.size() > 10) m_sigs.removeFirst();
     if (res.isError) {
@@ -559,8 +823,25 @@ QString AiSession::stuckReason() const
 QString AiSession::stuckCheck(bool *stop)
 {
     *stop = false;
+    if (m_everBuilt && !m_checkpointExtended && m_turn >= m_nextCheckpoint) {       // working code exists and the run is progressing: do not interrupt at turn 30
+        m_checkpointExtended = true; m_nextCheckpoint += 30;
+    }
     const QString reason = stuckReason();
     if (m_quiet > 0) --m_quiet;
+    if (!m_pendingNote.isEmpty()) {
+        const QString n = m_pendingNote; m_pendingNote.clear();
+        if (!reason.isEmpty()) resetStuckState();        // the automatic note is the course correction: no dialog this round
+        for (auto it = m_pathWrites.begin(); it != m_pathWrites.end(); ++it) it.value() = 0;
+        m_sameBuildErr = 0;
+        Q_EMIT progress(QStringLiteral("↻ ") + TR("Reminder sent to the model: get a minimal version building first."));
+        return n;
+    }
+    if (reason.isEmpty() && m_ctx->canRun() && m_turn >= 10 && m_turn % 10 == 0 && m_turn != m_lastNudge && m_buildState != 1) {
+        m_lastNudge = m_turn;        // automatic, silent course correction: no dialog, the model just gets a reminder
+        Q_EMIT progress(QStringLiteral("↻ ") + TR("Reminder sent to the model: get a minimal version building first."));
+        return QStringLiteral("Automatic reminder (turn %1): the project %2. Stop exploring. Make the smallest working version first: write only what is needed for a minimal build, "
+                              "call build_project, fix only the FIRST error, and build again. If a feature keeps failing, remove or stub it and come back later.").arg(m_turn).arg(m_buildState == 2 ? QStringLiteral("still does not build") : QStringLiteral("has not been built successfully yet")) + searchHint();
+    }
     if (reason.isEmpty() || !onStuck) return {};
     Q_EMIT progress(QStringLiteral("⚠ ") + reason);
     QString text;

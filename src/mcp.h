@@ -33,6 +33,7 @@ public:
     bool start(QString *error);
     void stop();
     void abort() { m_abort = true; }
+    void resetAbort() { m_abort = false; }
 
     const QList<McpTool> &tools() const { return m_tools; }
     const McpServerCfg &config() const { return m_cfg; }
@@ -60,6 +61,16 @@ private:
     QList<McpTool>              m_tools;
 };
 
+/** Ready-made MCP servers that are free and need no API key. {PATH} is replaced by a project folder. */
+struct McpPreset {
+    QString name;          // suggested server name
+    QString description;
+    QString target;        // command line; may contain {PATH}
+    QString requires_;     // what must be installed ("Node.js (npx)" or "uv (uvx)")
+    bool    needsPath = false;
+};
+const QList<McpPreset> &mcpPresets();
+
 /** All MCP servers of a task. */
 class McpManager {
 public:
@@ -75,6 +86,7 @@ public:
     bool       call(const QString &exposed, const QJsonObject &args, int timeoutSec,
                     QString *text, bool *isError, QString *error, QString *label);
     void       abort();
+    void       resetAbort();
 
     static QString exposedName(const QString &server, const QString &tool);
 

@@ -280,6 +280,42 @@ bool McpClient::call(const QString &tool, const QJsonObject &args, int timeoutSe
     return true;
 }
 
+const QList<McpPreset> &mcpPresets()
+{
+    static const QList<McpPreset> l = {
+        // Remote servers: just an address, nothing to install, no key (anonymous / rate limited). URLs from the providers' documentation.
+        {"deepwiki", "DeepWiki: documentation and Q&A about any public GitHub repository (read_wiki_structure, read_wiki_contents, ask_question)",
+         "https://mcp.deepwiki.com/mcp", "internet only", false},
+        {"exa", "Exa: web search and page reading as Markdown (web_search_exa, web_fetch_exa); anonymous, rate limited",
+         "https://mcp.exa.ai/mcp", "internet only", false},
+        {"parallel-search", "Parallel Web Search: web_search and web_fetch; free, anonymous requests run in fast mode",
+         "https://search.parallel.ai/mcp", "internet only", false},
+        {"huggingface", "Hugging Face: look up models, datasets and papers, use Spaces; anonymous access with the default tools",
+         "https://hf.co/mcp", "internet only", false},
+        {"zip1", "zip1.io URL shortener (create_short_url, get_url_stats, validate_url, generate_short_code); 30 requests/min per IP",
+         "https://zip1.io/mcp", "internet only", false},
+        {"filesystem", "Read, write, search and edit files in a folder (official reference server)",
+         "npx -y @modelcontextprotocol/server-filesystem {PATH}", "Node.js (npx)", true},
+        {"memory-graph", "Knowledge graph memory (official; the built-in memory_* notes already cover simple needs)",
+         "npx -y @modelcontextprotocol/server-memory", "Node.js (npx)", false},
+        {"thinking", "Sequential thinking: structured step-by-step problem solving for hard tasks (official)",
+         "npx -y @modelcontextprotocol/server-sequential-thinking", "Node.js (npx)", false},
+        {"docs", "Context7 (remote): up-to-date library documentation and code examples; nothing to install, works without a key (rate limited)",
+         "https://mcp.context7.com/mcp", "internet only", false},
+        {"fetch", "Fetch a web page and convert it to Markdown (official)",
+         "uvx mcp-server-fetch", "uv (uvx)", false},
+        {"search", "DuckDuckGo web search and page fetch, no key",
+         "uvx duckduckgo-mcp-server", "uv (uvx)", false},
+        {"time", "Current time and time-zone conversion (official)",
+         "uvx mcp-server-time", "uv (uvx)", false},
+        {"git", "Git status, diff, log, commit, branch for a repository (official; the folder must be a git repo)",
+         "uvx mcp-server-git --repository {PATH}", "uv (uvx)", true},
+        {"playwright", "Browser automation with Playwright (first start downloads a browser; heavy)",
+         "npx -y @playwright/mcp@latest --headless", "Node.js (npx)", false},
+    };
+    return l;
+}
+
 /* ── manager ─────────────────────────────────────────────────────────────── */
 
 McpManager::~McpManager() { m_byName.clear(); m_clients.clear(); }
@@ -326,5 +362,6 @@ bool McpManager::call(const QString &exposed, const QJsonObject &args, int timeo
 }
 
 void McpManager::abort() { for (auto &c : m_clients) c->abort(); }
+void McpManager::resetAbort() { for (auto &c : m_clients) c->resetAbort(); }
 
 } // namespace ai

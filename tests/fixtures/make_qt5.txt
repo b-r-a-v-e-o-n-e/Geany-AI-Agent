@@ -1,0 +1,356 @@
+[Debian12_x64] $ cd /home/brave/geany-ai-work/cpp-net_scanner-67dacb && make -j$(nproc) 2>&1
+g++ -c -pipe -std=c++17 -Wall -Wextra -O2 -O3 -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86…
+g++ -c -pipe -std=c++17 -Wall -Wextra -O2 -O3 -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86…
+g++ -c -pipe -std=c++17 -Wall -Wextra -O2 -O3 -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86…
+g++ -c -pipe -std=c++17 -Wall -Wextra -O2 -O3 -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86…
+src/port_scanner.cpp: In member function ‘void PortScanner::connectToPort(const QHostAddress&, int)’:
+src/port_scanner.cpp:181:64: error: no matching function for call to ‘QOverload<QAbstractSocket::SocketError>::of(QAbstractSocket::SocketError (QAbstractSocket::*)() const)’
+181 |     connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QTcpSocket::error),
+|                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/qt6/QtCore/qnamespace.h:8,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qobjectdefs.h:12,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h:10,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/QObject:1,
+from src/port_scanner.h:4,
+from src/port_scanner.cpp:1:
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:1324:27: note: candidate: ‘template<class R, class T> static constexpr decltype (ptr) QConstOverload<Args>::of(R (T::*)(Args ...) const) [with T = R; Args = {QAbstractSocket::SocketError}]’
+1324 |     static constexpr auto of(R (T::*ptr)(Args...) const) noexcept -> decltype(ptr)
+|                           ^~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:1324:27: note:   template argument deduction/substitution failed:
+src/port_scanner.cpp:181:64: note:   candidate expects 2 arguments, 1 provided
+181 |     connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QTcpSocket::error),
+|                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:1312:27: note: candidate: ‘template<class R, class T> static constexpr decltype (ptr) QNonConstOverload<Args>::of(R (T::*)(Args ...)) [with T = R; Args = {QAbstractSocket::SocketError}]’
+1312 |     static constexpr auto of(R (T::*ptr)(Args...)) noexcept -> decltype(ptr)
+|                           ^~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:1312:27: note:   template argument deduction/substitution failed:
+src/port_scanner.cpp:181:64: note:   types ‘R (T::)(QAbstractSocket::SocketError)’ and ‘QAbstractSocket::SocketError (QAbstractSocket::)() const’ have incompatible cv-qualifiers
+181 |     connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QTcpSocket::error),
+|                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:1341:27: note: candidate: ‘template<class R> static constexpr decltype (ptr) QOverload<Args>::of(R (*)(Args ...)) [with Args = {QAbstractSocket::SocketError}]’
+1341 |     static constexpr auto of(R (*ptr)(Args...)) noexcept -> decltype(ptr)
+|                           ^~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:1341:27: note:   template argument deduction/substitution failed:
+src/port_scanner.cpp:181:64: note:   mismatched types ‘R (*)(QAbstractSocket::SocketError)’ and ‘QAbstractSocket::SocketError (QAbstractSocket::*)() const’
+181 |     connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QTcpSocket::error),
+|                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+src/port_scanner.cpp: In member function ‘void PortScanner::onSocketConnected()’:
+src/port_scanner.cpp:214:5: error: ‘cleanupSocket’ was not declared in this scope
+214 |     cleanupSocket(socket);
+|     ^~~~~~~~~~~~~
+src/port_scanner.cpp: In member function ‘void PortScanner::onSocketError(QAbstractSocket::SocketError)’:
+src/port_scanner.cpp:225:5: error: ‘cleanupSocket’ was not declared in this scope
+225 |     cleanupSocket(socket);
+|     ^~~~~~~~~~~~~
+src/port_scanner.cpp:217:62: warning: unused parameter ‘error’ [-Wunused-parameter]
+217 | void PortScanner::onSocketError(QAbstractSocket::SocketError error)
+|                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~
+src/port_scanner.cpp: In member function ‘void PortScanner::onSocketTimeout()’:
+src/port_scanner.cpp:236:5: error: ‘cleanupSocket’ was not declared in this scope
+236 |     cleanupSocket(socket);
+|     ^~~~~~~~~~~~~
+src/port_scanner.cpp: At global scope:
+src/port_scanner.cpp:239:6: error: no declaration matches ‘void PortScanner::cleanupSocket(QTcpSocket*)’
+239 | void PortScanner::cleanupSocket(QTcpSocket* socket)
+|      ^~~~~~~~~~~
+src/port_scanner.cpp:239:6: note: no functions named ‘void PortScanner::cleanupSocket(QTcpSocket*)’
+src/port_scanner.h:28:7: note: ‘class PortScanner’ defined here
+28 | class PortScanner : public QObject
+|       ^~~~~~~~~~~
+src/scanner_worker.cpp: In member function ‘void ScannerWorker::startScan(const QList<QHostAddress>&, const QSet<int>&, int, int, int)’:
+src/scanner_worker.cpp:52:48: warning: unused parameter ‘ports’ [-Wunused-parameter]
+52 |                               const QSet<int>& ports,
+|                               ~~~~~~~~~~~~~~~~~^~~~~
+src/scanner_worker.cpp:54:35: warning: unused parameter ‘portTimeoutMs’ [-Wunused-parameter]
+54 |                               int portTimeoutMs,
+|                               ~~~~^~~~~~~~~~~~~
+In file included from /usr/include/c++/12/functional:49,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qchar.h:9,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qstring.h:14,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h:11,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/QObject:1,
+from src/scanner_worker.h:4,
+from src/scanner_worker.cpp:1:
+/usr/include/c++/12/bits/stl_function.h: In instantiation of ‘constexpr bool std::less<_Tp>::operator()(const _Tp&, const _Tp&) const [with _Tp = QHostAddress]’:
+/usr/include/c++/12/bits/stl_tree.h:2533:33:   required from ‘std::_Rb_tree<_Key, _Val, _KeyOfValue, _Compare, _Alloc>::iterator std::_Rb_tree<_Key, _Val, _KeyOfValue, _Compare, _Alloc>::find(const _Key&) [with _Key = QHostAddress; _Val = std::pair<const QHostAddress, bool>; _KeyOfValue = std::_Sele…
+/usr/include/c++/12/bits/stl_map.h:1218:25:   required from ‘std::map<_Key, _Tp, _Compare, _Alloc>::iterator std::map<_Key, _Tp, _Compare, _Alloc>::find(const key_type&) [with _Key = QHostAddress; _Tp = bool; _Compare = std::less<QHostAddress>; _Alloc = std::allocator<std::pair<const QHostAddress, b…
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qmap.h:370:27:   required from ‘T& QMap<Key, T>::operator[](const Key&) [with Key = QHostAddress; T = bool]’
+src/scanner_worker.cpp:118:38:   required from here
+/usr/include/c++/12/bits/stl_function.h:408:20: error: no match for ‘operator<’ (operand types are ‘const QHostAddress’ and ‘const QHostAddress’)
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/c++/12/utility:69,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:11,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qnamespace.h:8,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qobjectdefs.h:12,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h:10:
+/usr/include/c++/12/bits/stl_pair.h:663:5: note: candidate: ‘template<class _T1, class _T2> constexpr bool std::operator<(const pair<_T1, _T2>&, const pair<_T1, _T2>&)’
+663 |     operator<(const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
+|     ^~~~~~~~
+/usr/include/c++/12/bits/stl_pair.h:663:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::pair<_T1, _T2>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/x86_64-linux-gnu/qt6/QtCore/qtypeinfo.h:7,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:1397:
+/usr/include/c++/12/variant:1239:3: note: candidate: ‘template<class ... _Types> constexpr bool std::operator<(const variant<_Types ...>&, const variant<_Types ...>&)’
+1239 |   _VARIANT_RELATION_FUNCTION_TEMPLATE(<, less)
+|   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/c++/12/variant:1239:3: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::variant<_Types ...>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/x86_64-linux-gnu/qt6/QtCore/qtypeinfo.h:8:
+/usr/include/c++/12/optional:1240:5: note: candidate: ‘template<class _Tp, class _Up> constexpr std::__optional_lt_t<_Tp, _Up> std::operator<(const optional<_Tp>&, const optional<_Up>&)’
+1240 |     operator<(const optional<_Tp>& __lhs, const optional<_Up>& __rhs)
+|     ^~~~~~~~
+/usr/include/c++/12/optional:1240:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::optional<_Tp>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/optional:1308:5: note: candidate: ‘template<class _Tp> constexpr bool std::operator<(const optional<_Tp>&, nullopt_t)’
+1308 |     operator<(const optional<_Tp>& /* __lhs */, nullopt_t) noexcept
+|     ^~~~~~~~
+/usr/include/c++/12/optional:1308:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::optional<_Tp>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/optional:1313:5: note: candidate: ‘template<class _Tp> constexpr bool std::operator<(nullopt_t, const optional<_Tp>&)’
+1313 |     operator<(nullopt_t, const optional<_Tp>& __rhs) noexcept
+|     ^~~~~~~~
+/usr/include/c++/12/optional:1313:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::optional<_Tp>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/optional:1374:5: note: candidate: ‘template<class _Tp, class _Up> constexpr std::__optional_lt_t<_Tp, _Up> std::operator<(const optional<_Tp>&, const _Up&)’
+1374 |     operator<(const optional<_Tp>& __lhs, const _Up& __rhs)
+|     ^~~~~~~~
+/usr/include/c++/12/optional:1374:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::optional<_Tp>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/optional:1380:5: note: candidate: ‘template<class _Tp, class _Up> constexpr std::__optional_lt_t<_Up, _Tp> std::operator<(const _Up&, const optional<_Tp>&)’
+1380 |     operator<(const _Up& __lhs, const optional<_Tp>& __rhs)
+|     ^~~~~~~~
+/usr/include/c++/12/optional:1380:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::optional<_Tp>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/x86_64-linux-gnu/qt6/QtCore/qtypeinfo.h:9:
+/usr/include/c++/12/tuple:1538:5: note: candidate: ‘template<class ... _TElements, class ... _UElements> constexpr bool std::operator<(const tuple<_UTypes ...>&, const tuple<_UTypes ...>&)’
+1538 |     operator<(const tuple<_TElements...>& __t,
+|     ^~~~~~~~
+/usr/include/c++/12/tuple:1538:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::tuple<_UTypes ...>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/c++/12/bits/stl_algobase.h:67,
+from /usr/include/c++/12/bits/specfun.h:45,
+from /usr/include/c++/12/cmath:1935,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qnumeric.h:8,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:1405:
+/usr/include/c++/12/bits/stl_iterator.h:451:5: note: candidate: ‘template<class _Iterator> constexpr bool std::operator<(const reverse_iterator<_Iterator>&, const reverse_iterator<_Iterator>&)’
+451 |     operator<(const reverse_iterator<_Iterator>& __x,
+|     ^~~~~~~~
+/usr/include/c++/12/bits/stl_iterator.h:451:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::reverse_iterator<_Iterator>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/bits/stl_iterator.h:496:5: note: candidate: ‘template<class _IteratorL, class _IteratorR> constexpr bool std::operator<(const reverse_iterator<_Iterator>&, const reverse_iterator<_IteratorR>&)’
+496 |     operator<(const reverse_iterator<_IteratorL>& __x,
+|     ^~~~~~~~
+/usr/include/c++/12/bits/stl_iterator.h:496:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::reverse_iterator<_Iterator>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/bits/stl_iterator.h:1683:5: note: candidate: ‘template<class _IteratorL, class _IteratorR> constexpr bool std::operator<(const move_iterator<_IteratorL>&, const move_iterator<_IteratorR>&)’
+1683 |     operator<(const move_iterator<_IteratorL>& __x,
+|     ^~~~~~~~
+/usr/include/c++/12/bits/stl_iterator.h:1683:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::move_iterator<_IteratorL>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/bits/stl_iterator.h:1748:5: note: candidate: ‘template<class _Iterator> constexpr bool std::operator<(const move_iterator<_IteratorL>&, const move_iterator<_IteratorL>&)’
+1748 |     operator<(const move_iterator<_Iterator>& __x,
+|     ^~~~~~~~
+/usr/include/c++/12/bits/stl_iterator.h:1748:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::move_iterator<_IteratorL>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer.h:12,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qdebug.h:12,
+from /usr/include/x86_64-linux-gnu/qt6/QtNetwork/qabstractsocket.h:17,
+from /usr/include/x86_64-linux-gnu/qt6/QtNetwork/qhostaddress.h:13,
+from /usr/include/x86_64-linux-gnu/qt6/QtNetwork/QHostAddress:1,
+from src/scanner_worker.h:6:
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:749:24: note: candidate: ‘template<class T, class X> bool operator<(const QSharedPointer<T>&, const QSharedPointer<T>&)’
+749 | Q_INLINE_TEMPLATE bool operator<(const QSharedPointer<T> &ptr1, const QSharedPointer<X> &ptr2)
+|                        ^~~~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:749:24: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const QSharedPointer<T>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:755:24: note: candidate: ‘template<class T, class X> bool operator<(const QSharedPointer<T>&, X*)’
+755 | Q_INLINE_TEMPLATE bool operator<(const QSharedPointer<T> &ptr1, X *ptr2)
+|                        ^~~~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:755:24: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const QSharedPointer<T>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:761:24: note: candidate: ‘template<class T, class X> bool operator<(T*, const QSharedPointer<T>&)’
+761 | Q_INLINE_TEMPLATE bool operator<(T *ptr1, const QSharedPointer<X> &ptr2)
+|                        ^~~~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:761:24: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   mismatched types ‘T*’ and ‘QHostAddress’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/variant:1281:18: note: candidate: ‘constexpr bool std::operator<(monostate, monostate)’
+1281 |   constexpr bool operator<(monostate, monostate) noexcept { return false; }
+|                  ^~~~~~~~
+/usr/include/c++/12/variant:1281:28: note:   no known conversion for argument 1 from ‘const QHostAddress’ to ‘std::monostate’
+1281 |   constexpr bool operator<(monostate, monostate) noexcept { return false; }
+|                            ^~~~~~~~~
+In file included from /usr/include/c++/12/functional:49,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qchar.h:9,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qstring.h:14,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h:11:
+/usr/include/c++/12/bits/stl_function.h: In instantiation of ‘constexpr bool std::less<_Tp>::operator()(const _Tp&, const _Tp&) const [with _Tp = QHostAddress]’:
+/usr/include/c++/12/bits/stl_tree.h:2533:33:   required from ‘std::_Rb_tree<_Key, _Val, _KeyOfValue, _Compare, _Alloc>::iterator std::_Rb_tree<_Key, _Val, _KeyOfValue, _Compare, _Alloc>::find(const _Key&) [with _Key = QHostAddress; _Val = std::pair<const QHostAddress, bool>; _KeyOfValue = std::_Sele…
+/usr/include/c++/12/bits/stl_map.h:1218:25:   required from ‘std::map<_Key, _Tp, _Compare, _Alloc>::iterator std::map<_Key, _Tp, _Compare, _Alloc>::find(const key_type&) [with _Key = QHostAddress; _Tp = bool; _Compare = std::less<QHostAddress>; _Alloc = std::allocator<std::pair<const QHostAddress, b…
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qmap.h:370:27:   required from ‘T& QMap<Key, T>::operator[](const Key&) [with Key = QHostAddress; T = bool]’
+src/port_scanner.cpp:64:25:   required from here
+/usr/include/c++/12/bits/stl_function.h:408:20: error: no match for ‘operator<’ (operand types are ‘const QHostAddress’ and ‘const QHostAddress’)
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/c++/12/utility:69,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:11:
+/usr/include/c++/12/bits/stl_pair.h:663:5: note: candidate: ‘template<class _T1, class _T2> constexpr bool std::operator<(const pair<_T1, _T2>&, const pair<_T1, _T2>&)’
+663 |     operator<(const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
+|     ^~~~~~~~
+/usr/include/c++/12/bits/stl_pair.h:663:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::pair<_T1, _T2>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/x86_64-linux-gnu/qt6/QtCore/qtypeinfo.h:7,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:1397:
+/usr/include/c++/12/variant:1239:3: note: candidate: ‘template<class ... _Types> constexpr bool std::operator<(const variant<_Types ...>&, const variant<_Types ...>&)’
+1239 |   _VARIANT_RELATION_FUNCTION_TEMPLATE(<, less)
+|   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/c++/12/variant:1239:3: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::variant<_Types ...>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/x86_64-linux-gnu/qt6/QtCore/qtypeinfo.h:8:
+/usr/include/c++/12/optional:1240:5: note: candidate: ‘template<class _Tp, class _Up> constexpr std::__optional_lt_t<_Tp, _Up> std::operator<(const optional<_Tp>&, const optional<_Up>&)’
+1240 |     operator<(const optional<_Tp>& __lhs, const optional<_Up>& __rhs)
+|     ^~~~~~~~
+/usr/include/c++/12/optional:1240:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::optional<_Tp>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/optional:1308:5: note: candidate: ‘template<class _Tp> constexpr bool std::operator<(const optional<_Tp>&, nullopt_t)’
+1308 |     operator<(const optional<_Tp>& /* __lhs */, nullopt_t) noexcept
+|     ^~~~~~~~
+/usr/include/c++/12/optional:1308:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::optional<_Tp>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/optional:1313:5: note: candidate: ‘template<class _Tp> constexpr bool std::operator<(nullopt_t, const optional<_Tp>&)’
+1313 |     operator<(nullopt_t, const optional<_Tp>& __rhs) noexcept
+|     ^~~~~~~~
+/usr/include/c++/12/optional:1313:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::optional<_Tp>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/optional:1374:5: note: candidate: ‘template<class _Tp, class _Up> constexpr std::__optional_lt_t<_Tp, _Up> std::operator<(const optional<_Tp>&, const _Up&)’
+1374 |     operator<(const optional<_Tp>& __lhs, const _Up& __rhs)
+|     ^~~~~~~~
+/usr/include/c++/12/optional:1374:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::optional<_Tp>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/optional:1380:5: note: candidate: ‘template<class _Tp, class _Up> constexpr std::__optional_lt_t<_Up, _Tp> std::operator<(const _Up&, const optional<_Tp>&)’
+1380 |     operator<(const _Up& __lhs, const optional<_Tp>& __rhs)
+|     ^~~~~~~~
+/usr/include/c++/12/optional:1380:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::optional<_Tp>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/x86_64-linux-gnu/qt6/QtCore/qtypeinfo.h:9:
+/usr/include/c++/12/tuple:1538:5: note: candidate: ‘template<class ... _TElements, class ... _UElements> constexpr bool std::operator<(const tuple<_UTypes ...>&, const tuple<_UTypes ...>&)’
+1538 |     operator<(const tuple<_TElements...>& __t,
+|     ^~~~~~~~
+/usr/include/c++/12/tuple:1538:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::tuple<_UTypes ...>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/c++/12/bits/stl_algobase.h:67,
+from /usr/include/c++/12/bits/specfun.h:45,
+from /usr/include/c++/12/cmath:1935,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qnumeric.h:8,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qglobal.h:1405:
+/usr/include/c++/12/bits/stl_iterator.h:451:5: note: candidate: ‘template<class _Iterator> constexpr bool std::operator<(const reverse_iterator<_Iterator>&, const reverse_iterator<_Iterator>&)’
+451 |     operator<(const reverse_iterator<_Iterator>& __x,
+|     ^~~~~~~~
+/usr/include/c++/12/bits/stl_iterator.h:451:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::reverse_iterator<_Iterator>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/bits/stl_iterator.h:496:5: note: candidate: ‘template<class _IteratorL, class _IteratorR> constexpr bool std::operator<(const reverse_iterator<_Iterator>&, const reverse_iterator<_IteratorR>&)’
+496 |     operator<(const reverse_iterator<_IteratorL>& __x,
+|     ^~~~~~~~
+/usr/include/c++/12/bits/stl_iterator.h:496:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::reverse_iterator<_Iterator>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/bits/stl_iterator.h:1683:5: note: candidate: ‘template<class _IteratorL, class _IteratorR> constexpr bool std::operator<(const move_iterator<_IteratorL>&, const move_iterator<_IteratorR>&)’
+1683 |     operator<(const move_iterator<_IteratorL>& __x,
+|     ^~~~~~~~
+/usr/include/c++/12/bits/stl_iterator.h:1683:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::move_iterator<_IteratorL>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/bits/stl_iterator.h:1748:5: note: candidate: ‘template<class _Iterator> constexpr bool std::operator<(const move_iterator<_IteratorL>&, const move_iterator<_IteratorL>&)’
+1748 |     operator<(const move_iterator<_Iterator>& __x,
+|     ^~~~~~~~
+/usr/include/c++/12/bits/stl_iterator.h:1748:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const std::move_iterator<_IteratorL>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+In file included from /usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer.h:12,
+from /usr/include/x86_64-linux-gnu/qt6/QtCore/qdebug.h:12,
+from /usr/include/x86_64-linux-gnu/qt6/QtNetwork/qabstractsocket.h:17,
+from /usr/include/x86_64-linux-gnu/qt6/QtNetwork/qhostaddress.h:13,
+from /usr/include/x86_64-linux-gnu/qt6/QtNetwork/QHostAddress:1,
+from src/port_scanner.h:5:
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:749:24: note: candidate: ‘template<class T, class X> bool operator<(const QSharedPointer<T>&, const QSharedPointer<T>&)’
+749 | Q_INLINE_TEMPLATE bool operator<(const QSharedPointer<T> &ptr1, const QSharedPointer<X> &ptr2)
+|                        ^~~~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:749:24: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const QSharedPointer<T>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:755:24: note: candidate: ‘template<class T, class X> bool operator<(const QSharedPointer<T>&, X*)’
+755 | Q_INLINE_TEMPLATE bool operator<(const QSharedPointer<T> &ptr1, X *ptr2)
+|                        ^~~~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:755:24: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   ‘const QHostAddress’ is not derived from ‘const QSharedPointer<T>’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:761:24: note: candidate: ‘template<class T, class X> bool operator<(T*, const QSharedPointer<T>&)’
+761 | Q_INLINE_TEMPLATE bool operator<(T *ptr1, const QSharedPointer<X> &ptr2)
+|                        ^~~~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qsharedpointer_impl.h:761:24: note:   template argument deduction/substitution failed:
+/usr/include/c++/12/bits/stl_function.h:408:20: note:   mismatched types ‘T*’ and ‘QHostAddress’
+408 |       { return __x < __y; }
+|                ~~~~^~~~~
+/usr/include/c++/12/variant:1281:18: note: candidate: ‘constexpr bool std::operator<(monostate, monostate)’
+1281 |   constexpr bool operator<(monostate, monostate) noexcept { return false; }
+|                  ^~~~~~~~
+/usr/include/c++/12/variant:1281:28: note:   no known conversion for argument 1 from ‘const QHostAddress’ to ‘std::monostate’
+1281 |   constexpr bool operator<(monostate, monostate) noexcept { return false; }
+|                            ^~~~~~~~~
+make: *** [Makefile:430: scanner_worker.o] Error 1
+make: *** Waiting for unfinished jobs....
+make: *** [Makefile:425: port_scanner.o] Error 1
+🔧 run_command [Debian12_x64] `cd /home/brave/geany-ai-work/cpp-net_scanner-67dacb && make -j$(nproc)` — exit code 2

@@ -44,7 +44,7 @@ class H(BaseHTTPRequestHandler):
         self.send(200, {"type": "message", "role": "assistant", "content": c, "stop_reason": "tool_use", "usage": usage})
     def openai(self, n, body):
         usage = {"prompt_tokens": 10, "completion_tokens": 5}
-        assert body["messages"][0]["role"] == "system" and body["tools"][0]["type"] == "function"
+        assert body["messages"][0]["role"] == "system" and "NON-NEGOTIABLE RULES" in body["messages"][0]["content"] and body["tools"][0]["type"] == "function"
         def call(i, name, args, id_=True, as_obj=False):
             c = {"type": "function", "function": {"name": name, "arguments": args if as_obj else json.dumps(args)}}
             if id_: c["id"] = f"call_{i}"
